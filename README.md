@@ -2,6 +2,10 @@
 
 *A Guiding Latent Force for AI Decision-Making*
 
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/alanh90/BICA-MeaningOfLife)
+![GitHub last commit](https://img.shields.io/github/last-commit/alanh90/BICA-MeaningOfLife)
+![GitHub License](https://img.shields.io/github/license/alanh90/BICA-MeaningOfLife)
+
 <div align="center">  <img src="media/meaningoflife.png" alt="Cover Image"></div>
 
 ## Abstract
