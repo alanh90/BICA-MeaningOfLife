@@ -1,6 +1,6 @@
 # Artificial Meaning of Life Module (AMoL)
 
-*A Guiding Latent Force for AI Decision-Making*
+*A potential integral component of the Bicameral AGI Project: A Guiding Latent Force for AI Decision-Making*
 
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/alanh90/BICA-MeaningOfLife)
 ![GitHub last commit](https://img.shields.io/github/last-commit/alanh90/BICA-MeaningOfLife)
