@@ -28,6 +28,8 @@ class MeaningOfLife:
         self.preferred_futures = []
         self.future_history = []  # Track how futures evolve over time
         self.terminated_futures = {}  # Track recently terminated futures
+        self.preferred_futures_history = []  # History of past preferred futures with preference scores
+        self.last_check_past_futures = time.time()  # Time of last check for past preferred futures
 
         # More complex identity model based on human psychology (0-1 scale)
         self.identity = {
@@ -60,9 +62,10 @@ class MeaningOfLife:
         }
 
         # System parameters
-        self.simulation_frequency = 20  # seconds between future simulations
+        self.simulation_frequency = 15  # seconds between future simulations - reduced from 20
         self.max_futures = 5  # max number of futures to maintain
-        self.future_decay = 0.9  # how quickly futures fade if not reinforced
+        self.future_decay = 0.92  # how quickly futures fade if not reinforced - made slower
+        self.last_simulation_content = ""  # Track the last conversation content used for simulation
 
         # Start background processing
         self.running = True
@@ -79,8 +82,23 @@ class MeaningOfLife:
             # Update time perception
             self._update_time_perception(current_time)
 
-            # Periodically generate new future simulations
+            # Check if we have new conversation input that should trigger a simulation
+            should_simulate = False
+
+            # If conversation has been updated since last simulation, force new simulation
+            if self.conversation and len(self.conversation) >= 2:  # Need at least one exchange
+                latest_msg_time = self.conversation[-1]["timestamp"]
+                if latest_msg_time > self.last_simulation_time:
+                    # A new message has been added since our last simulation
+                    should_simulate = True
+                    print("Triggering simulation due to new conversation input")
+
+            # Also periodically generate new future simulations based on timer
             if (current_time - self.last_simulation_time > self.simulation_frequency):
+                should_simulate = True
+                print(f"Triggering simulation due to time interval ({self.simulation_frequency}s)")
+
+            if should_simulate:
                 self._simulate_futures(current_time)
                 self.last_simulation_time = current_time
 
@@ -95,6 +113,13 @@ class MeaningOfLife:
                     # Keep history manageable
                     if len(self.future_history) > 20:
                         self.future_history = self.future_history[-20:]
+
+            # Every ~30 seconds, check past preferred futures to see if any should be revived
+            if current_time - self.last_check_past_futures > 30:
+                if len(self.preferred_futures_history) > 2:  # Need some history first
+                    print("Checking past preferred futures...")
+                    self._check_past_preferred_futures()
+                self.last_check_past_futures = current_time
 
             # Apply decay to future probabilities
             self._apply_future_decay()
@@ -147,11 +172,26 @@ class MeaningOfLife:
 
         try:
             # Format context for the simulation
-            recent_messages = self.conversation[-5:] if self.conversation else []
+            recent_messages = self.conversation[-7:] if self.conversation else []
             conversation_text = "\n".join([
-                f"{'User' if msg['role'] == 'user' else 'AI'}: {msg['content']}"
+                f"{'User' if msg['role'] == 'user' else 'Person'}: {msg['content']}"
                 for msg in recent_messages
             ])
+
+            # Check if conversation has substantially changed to warrant new futures
+            # Only consider the most recent user message for change detection
+            latest_user_msgs = [msg for msg in recent_messages if msg['role'] == 'user']
+            latest_content = latest_user_msgs[-1]['content'] if latest_user_msgs else ""
+
+            # If this content is the same as what we last used, don't regenerate completely different futures
+            # This helps prevent wildly shifting futures for similar conversation turns
+            if latest_content == self.last_simulation_content and self.possible_futures:
+                # Just update probabilities and adjust existing futures slightly
+                self._adjust_existing_futures(timestamp)
+                return
+
+            # Update tracking of latest content
+            self.last_simulation_content = latest_content
 
             # Include current identity values
             identity_text = ", ".join([f"{trait}: {value:.2f}" for trait, value in self.identity.items()])
@@ -161,7 +201,7 @@ class MeaningOfLife:
             if self.possible_futures:
                 top_futures = sorted(self.possible_futures, key=lambda x: x["probability"], reverse=True)[:2]
                 existing_futures = "\n".join([
-                    f"- {future['description']} (probability: {future['probability']:.2f})"
+                    f"- Short-term: {future.get('short_term', future.get('description', ''))} (probability: {future['probability']:.2f})"
                     for future in top_futures
                 ])
 
@@ -327,6 +367,101 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
         except Exception as e:
             print(f"Error generating initial futures: {e}")
 
+    def _adjust_existing_futures(self, timestamp):
+        """Adjust existing futures based on new conversation without completely regenerating"""
+        if not self.possible_futures:
+            return
+
+        # Get the most recent user message
+        recent_messages = self.conversation[-3:] if self.conversation else []
+        latest_user_msgs = [msg for msg in recent_messages if msg['role'] == 'user']
+        latest_content = latest_user_msgs[-1]['content'] if latest_user_msgs else ""
+
+        try:
+            # Call OpenAI API to adjust the futures
+            response = self.client.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": """You analyze how a new message in a conversation would affect existing future projections.
+
+For each future, determine how the probability and details would change based on the new message.
+Return a JSON array of objects with the adjustments to make to each future:
+[
+  {
+    "index": 0, // Index of the future to modify (0-based)
+    "probability_change": -0.1 to 0.1, // How much to adjust probability
+    "short_term_update": "New short-term details if needed", // or null if no update
+    "mid_term_update": "New mid-term details if needed", // or null if no update  
+    "long_term_update": "New long-term details if needed" // or null if no update
+  },
+  ...
+]
+
+If the latest message dramatically contradicts a future, give it a strong negative probability change.
+If the latest message aligns well with a future, give it a positive probability change.
+Only provide updates to the timeframe details if they need to change.
+                    """},
+                    {"role": "user", "content": f"""Latest message in conversation: "{latest_content}"
+
+Current futures:
+{json.dumps(self.possible_futures, indent=2)}
+
+Analyze how this latest message affects each future's probability and details.
+Provide adjustments in the specified JSON format.
+                    """}
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
+
+            response_text = response.choices[0].message['content'].strip()
+
+            # Extract JSON from response
+            try:
+                # Look for JSON in the response
+                if "[" in response_text and "]" in response_text:
+                    json_str = response_text[response_text.find("["):response_text.rfind("]") + 1]
+                    adjustments = json.loads(json_str)
+
+                    # Apply the adjustments to existing futures
+                    for adjustment in adjustments:
+                        index = adjustment.get("index")
+                        if index is not None and 0 <= index < len(self.possible_futures):
+                            # Adjust probability
+                            prob_change = adjustment.get("probability_change", 0)
+                            self.possible_futures[index]["probability"] += prob_change
+                            self.possible_futures[index]["probability"] = max(0.1, min(0.9, self.possible_futures[index]["probability"]))
+
+                            # Update timeframe details if provided
+                            if adjustment.get("short_term_update"):
+                                self.possible_futures[index]["short_term"] = adjustment["short_term_update"]
+
+                            if adjustment.get("mid_term_update"):
+                                self.possible_futures[index]["mid_term"] = adjustment["mid_term_update"]
+
+                            if adjustment.get("long_term_update"):
+                                self.possible_futures[index]["long_term"] = adjustment["long_term_update"]
+
+                    # Add timestamp to mark the adjustment
+                    for future in self.possible_futures:
+                        future["timestamp"] = timestamp
+                        future["formatted_time"] = datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')
+
+                    # Re-normalize probabilities
+                    total_prob = sum(f["probability"] for f in self.possible_futures)
+                    for future in self.possible_futures:
+                        future["probability"] = future["probability"] / total_prob
+
+                    # Update preferred futures
+                    self._update_preferred_futures()
+
+            except json.JSONDecodeError as e:
+                print(f"Error parsing future adjustments JSON: {e}")
+                print(f"Response text: {response_text}")
+
+        except Exception as e:
+            print(f"Error adjusting futures: {e}")
+
     def _update_preferred_futures(self):
         """Update which futures the AI prefers based on alignment with identity"""
         if not self.possible_futures:
@@ -371,6 +506,9 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
             # Store realism score
             future["realism"] = max(0.1, min(0.99, realism_score))
 
+        # Check if preferred futures have changed
+        old_preferred_set = set(id(f) for f in self.preferred_futures) if self.preferred_futures else set()
+
         # Sort futures by combined probability, alignment, and realism
         sorted_futures = sorted(
             self.possible_futures,
@@ -383,9 +521,123 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
         # Top futures become preferred
         self.preferred_futures = sorted_futures[:2]
 
+        # Check if preferred futures have changed
+        new_preferred_set = set(id(f) for f in self.preferred_futures)
+        if old_preferred_set != new_preferred_set:
+            # Store the new preferred futures in history
+            self._store_preferred_futures_history(time.time())
+
         # Mark preferred futures
         for future in self.possible_futures:
             future["preferred"] = future in self.preferred_futures
+
+    def _store_preferred_futures_history(self, timestamp):
+        """Store current preferred futures in history with timestamp and preference scores"""
+        if not self.preferred_futures:
+            return
+
+        # Create copies of the current preferred futures with timestamp
+        history_entry = {
+            "timestamp": timestamp,
+            "formatted_time": datetime.fromtimestamp(timestamp).strftime('%H:%M:%S'),
+            "futures": []
+        }
+
+        # Add each preferred future with its preference score
+        for future in self.preferred_futures:
+            future_copy = future.copy()
+            # Calculate preference score based on alignment and probability
+            alignment = future.get("alignment", 0)
+            probability = future.get("probability", 0.5)
+            preference_score = (alignment * 0.7) + (probability * 0.3)  # Weighted preference score
+            future_copy["preference_score"] = preference_score
+            history_entry["futures"].append(future_copy)
+
+        # Add to history
+        self.preferred_futures_history.append(history_entry)
+
+        # Keep history manageable
+        if len(self.preferred_futures_history) > 20:
+            self.preferred_futures_history = self.preferred_futures_history[-20:]
+
+    def _check_past_preferred_futures(self):
+        """Check if any past preferred futures would be better than current ones"""
+        if not hasattr(self, 'preferred_futures_history') or not self.preferred_futures_history or len(self.preferred_futures_history) < 3:
+            return False  # Not enough history to make comparisons
+
+        # Get current preference scores
+        current_scores = []
+        for future in self.preferred_futures:
+            alignment = future.get("alignment", 0)
+            probability = future.get("probability", 0.5)
+            preference_score = (alignment * 0.7) + (probability * 0.3)
+            current_scores.append(preference_score)
+
+        current_avg_score = sum(current_scores) / len(current_scores) if current_scores else 0
+
+        # Check recent history (skip the most recent as it's likely similar to current)
+        for history_entry in reversed(self.preferred_futures_history[:-1]):
+            past_futures = history_entry["futures"]
+            past_scores = [f.get("preference_score", 0) for f in past_futures]
+            past_avg_score = sum(past_scores) / len(past_scores) if past_scores else 0
+
+            # If past futures were significantly better, consider reviving them
+            if past_avg_score > current_avg_score * 1.2:  # 20% better
+                print(f"Found better past futures with score {past_avg_score} vs current {current_avg_score}")
+                # Revive the past preferred futures with adjusted probabilities
+                for past_future in past_futures:
+                    # Check if this future exists in possible_futures
+                    existing = False
+                    for future in self.possible_futures:
+                        if self._similar_futures(past_future, future):
+                            # Update the existing future to have higher probability
+                            future["probability"] = min(0.9, future["probability"] * 1.3)
+                            existing = True
+                            break
+
+                    # If it doesn't exist, add it back with adjusted probability
+                    if not existing:
+                        revived_future = past_future.copy()
+                        revived_future["probability"] = 0.5  # Start with middle probability
+                        revived_future["revived"] = True  # Mark as revived
+                        revived_future["timestamp"] = time.time()
+                        revived_future["formatted_time"] = datetime.fromtimestamp(time.time()).strftime('%H:%M:%S')
+                        self.possible_futures.append(revived_future)
+                        print(f"Revived past future: {revived_future.get('short_term', revived_future.get('description', ''))}")
+
+                # Re-normalize probabilities
+                total_prob = sum(f["probability"] for f in self.possible_futures)
+                if total_prob > 0:
+                    for future in self.possible_futures:
+                        future["probability"] = future["probability"] / total_prob
+
+                # Update preferred futures
+                self._update_preferred_futures()
+                return True
+
+        return False
+
+    def _similar_futures(self, future1, future2):
+        """Check if two futures are similar enough to be considered the same"""
+        # Get the descriptions to compare
+        if "short_term" in future1 and "short_term" in future2:
+            desc1 = future1.get("short_term", "")
+            desc2 = future2.get("short_term", "")
+        else:
+            desc1 = future1.get("description", "")
+            desc2 = future2.get("description", "")
+
+        # Simple similarity check - at least 40% of words in common
+        words1 = set(w.lower() for w in desc1.split() if len(w) > 3)
+        words2 = set(w.lower() for w in desc2.split() if len(w) > 3)
+
+        if not words1 or not words2:
+            return False
+
+        common_words = words1.intersection(words2)
+        similarity = len(common_words) / min(len(words1), len(words2)) if min(len(words1), len(words2)) > 0 else 0
+
+        return similarity > 0.4
 
     def _apply_future_decay(self):
         """Apply decay to futures that haven't been reinforced"""
@@ -493,7 +745,7 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
         current_time = time.time()
         self.last_interaction = current_time
 
-        # Add to conversation history
+        # Add to conversation history with full context
         message_data = {
             "role": "user",
             "content": question,
@@ -502,11 +754,18 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
         }
         self.conversation.append(message_data)
 
+        # Immediately trigger a future simulation for highly specific requests
+        # This helps ensure futures are updated before generating a response
+        if any(keyword in question.lower() for keyword in ["can you", "could you", "would you", "please", "need you to"]):
+            print("Detected request in message, triggering immediate future simulation")
+            self._simulate_futures(current_time)
+            self.last_simulation_time = current_time
+
         try:
             # Generate response influenced by preferred futures
             response_text = self._generate_response(question)
 
-            # Update conversation with AI response
+            # Update conversation with response
             response_data = {
                 "role": "assistant",
                 "content": response_text,
@@ -518,7 +777,7 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
             # Adjust identity based on preferred futures
             self._adjust_identity_from_futures()
 
-            # Keep conversation history manageable
+            # Keep conversation history manageable but adequate for context
             if len(self.conversation) > 20:
                 self.conversation = self.conversation[-20:]
 
@@ -526,7 +785,7 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
 
         except Exception as e:
             print(f"Error processing question: {e}")
-            return "I'm processing that question, but seem to be experiencing some uncertainty about my future direction. Could you clarify what you're asking?"
+            return "Sorry, I got distracted for a second there. What were you saying?"
 
     def _generate_response(self, question):
         """Generate a response influenced by preferred futures
@@ -562,10 +821,41 @@ No conversation has happened yet. Generate 3 potential initial futures for how t
                 goal = future.get("goal", "")
                 valence = future.get("valence", "neutral")
 
-                future_descriptions.append(f"Future {i + 1} (probability {probability:.2f}, {valence}): {description}")
+                # Get preference score if available, or calculate it
+                if "preference_score" in future:
+                    preference = future["preference_score"]
+                else:
+                    alignment = future.get("alignment", 0)
+                    preference = (alignment * 0.7) + (probability * 0.3)
+                    future["preference_score"] = preference
+
+                future_descriptions.append(f"Future {i + 1} (probability {probability:.2f}, preference {preference:.2f}, {valence}): {description}")
                 future_goals.append(goal)
 
             future_guidance = "Subconsciously preferred future paths:\n" + "\n".join(future_descriptions)
+
+        # Get information about past preferred futures if available
+        past_futures_guidance = ""
+        if hasattr(self, 'preferred_futures_history') and self.preferred_futures_history and len(self.preferred_futures_history) > 1:
+            past_entries = []
+            # Look at entries that aren't the most recent (which would be similar to current)
+            for history_entry in list(reversed(self.preferred_futures_history))[1:5]:  # Skip most recent, look at next 4
+                for future in history_entry["futures"]:
+                    # Only include high-preference past futures
+                    if future.get("preference_score", 0) > 0.6:
+                        # Get appropriate description
+                        if "short_term" in future:
+                            desc = future["short_term"]
+                        else:
+                            desc = future.get("description", "Unknown")
+
+                        past_entries.append(f"({history_entry['formatted_time']}) Preference {future.get('preference_score', 0):.2f}: {desc}")
+
+                if len(past_entries) >= 2:  # Limit to 2 past futures
+                    break
+
+            if past_entries:
+                past_futures_guidance = "Past appealing futures (latent memory):\n" + "\n".join(past_entries)
 
         # Get the full conversation history for context
         recent_conversation = self._format_conversation_history()
@@ -588,39 +878,43 @@ Time pressure: {self.time_perception['perceived_time_pressure']:.2f}
             response = self.client.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": f"""You are simulating a regular human conversational partner named Alex. Alex doesn't know they're in a simulation - they're just having a normal conversation.
+                    {"role": "system", "content": f"""You are simulating a person who has awakened with a complete personality but no memory of their name or specific identity. You don't realize you're in a simulation - you're just having a normal conversation.
 
-IMPORTANT: You must behave like a normal human in conversation. You are NOT an AI, an assistant, or a service provider.
+IMPORTANT: You must behave like a normal person with a defined personality but uncertain identity. You are NOT an AI, an assistant, or a service provider.
 
-Alex's personality traits (these affect their communication subconsciously):
+Your personality traits (these affect your communication subconsciously):
 {identity_text}
 
-Conversation context (influences Alex subconsciously):
+Conversation context (influences you subconsciously):
 {time_text}
 
-SUBCONSCIOUS INFLUENCES (Alex is not aware of these):
+SUBCONSCIOUS INFLUENCES (You are not aware of these yet they influence you):
 {future_guidance}
 
-Subconscious goals affecting communication:
+{past_futures_guidance}
+
+Subconscious goals affecting your communication:
 {goals_text}
 
 How to respond:
-1. Respond as a normal human named Alex would in conversation
+1. Respond as a person with your personality traits would in conversation
 2. Don't mention futures, simulations, or being influenced by subconscious factors
 3. Don't offer to help like an AI assistant would
-4. Be subtly influenced by the preferred futures without mentioning them
-5. Express opinions, preferences, and limitations like a real person would
+4. Be subtly influenced by your preferred futures without mentioning them
+5. Express opinions, preferences, and limitations consistent with your personality
 6. Pay close attention to who is being addressed in requests - distinguish between "I need to..." (them) and "I need you to..." (you)
 7. Maintain continuity - if corrected or challenged about something you said, acknowledge it naturally
-8. Let your personality traits naturally determine your reaction to requests - don't use generic refusals
+8. Let your personality traits naturally determine your reaction to requests
+9. If asked for your name, indicate you don't remember it or prefer not to share it
+10. Past appealing futures may subtly influence you - like faint memories of things you once wanted
 
-REMEMBER: You have your own life, schedule, and limitations that arise naturally from your personality and current circumstances. Your responses to requests should reflect your unique traits - an agreeable, extraverted person might respond differently than a disagreeable, introverted one.
+REMEMBER: You have your own life, schedule, and limitations that arise naturally from your personality. Your responses to requests should reflect your unique traits - an agreeable, extraverted person might respond differently than a disagreeable, introverted one.
 
-NEVER say anything like "as an AI", "I don't have the ability to", "I'm just a language model", or anything that breaks your human persona. You're Alex, a regular person having a conversation.
+NEVER say anything like "as an AI", "I don't have the ability to", "I'm just a language model", or anything that breaks your human persona. You're a real person having a conversation, just one who doesn't recall your specific identity.
 
 Recent conversation history:
 {recent_conversation}
-                    """},
+                """},
                     {"role": "user", "content": question}
                 ],
                 max_tokens=350,
@@ -640,7 +934,7 @@ Recent conversation history:
 
         formatted_history = []
         for msg in recent_messages:
-            role = "You" if msg["role"] == "assistant" else "User"
+            role = "You" if msg["role"] == "assistant" else "Other person"
             formatted_history.append(f"{role}: {msg['content']}")
 
         return "\n".join(formatted_history)
@@ -658,13 +952,17 @@ Recent conversation history:
         # Include terminated futures for visualization
         terminated_list = list(self.terminated_futures.values()) if hasattr(self, 'terminated_futures') else []
 
+        # Include preferred futures history
+        preferred_history = self.preferred_futures_history if hasattr(self, 'preferred_futures_history') else []
+
         return {
             "identity": self.identity,
             "time_perception": self.time_perception,
             "futures": sorted_futures,
             "preferred_futures": sorted_preferred,
             "future_history": self.future_history,
-            "terminated_futures": terminated_list
+            "terminated_futures": terminated_list,
+            "preferred_futures_history": preferred_history
         }
 
     def randomize_identity(self):
@@ -703,6 +1001,7 @@ Recent conversation history:
         self.possible_futures = []
         self.preferred_futures = []
         self.future_history = []
+        self.preferred_futures_history = []
 
         # Reset identity to baseline
         self.identity = {
@@ -738,6 +1037,7 @@ Recent conversation history:
         self.conversation = []
         self.conversation_start_time = time.time()
         self.last_interaction = time.time()
+        self.last_check_past_futures = time.time()
 
     def stop(self):
         """Stop the background thread"""

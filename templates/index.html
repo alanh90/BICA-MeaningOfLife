@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Future Simulation</title>
+    <title>Meaning of Life Module</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-theme.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -102,6 +102,21 @@
                     <div class="card-body">
                         <div id="preferred-futures-container" style="height: 180px; overflow-y: auto;">
                             <p class="text-center text-muted">No preferred futures yet...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Past Preferred Futures Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Past Preferred Futures</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2 text-center">
+                            <small class="text-muted">Historical record of highly preferred futures</small>
+                        </div>
+                        <div id="past-futures-container" style="height: 150px; overflow-y: auto;">
+                            <p class="text-center text-muted">No history of preferred futures yet...</p>
                         </div>
                     </div>
                 </div>
@@ -234,6 +249,9 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000  // Slow down animations for better visibility
+                    },
                     scales: {
                         x: {
                             type: 'linear',
@@ -483,6 +501,78 @@
                 `;
 
                 container.appendChild(futureElement);
+            });
+        }
+
+        // Update past preferred futures display
+        function updatePastPreferredFutures(preferredHistory) {
+            if (!preferredHistory || preferredHistory.length === 0) {
+                return;
+            }
+
+            const container = document.getElementById('past-futures-container');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Process history in reverse order (newest first)
+            const recentHistory = preferredHistory.slice(-5).reverse();
+
+            recentHistory.forEach((historyEntry, historyIndex) => {
+                const timestamp = historyEntry.formatted_time;
+                const futures = historyEntry.futures;
+
+                if (!futures || futures.length === 0) return;
+
+                // Create a timestamp header for this history entry
+                const timeHeader = document.createElement('div');
+                timeHeader.className = 'history-timestamp mb-2 mt-2';
+                timeHeader.innerHTML = `<strong>${timestamp}</strong>`;
+                container.appendChild(timeHeader);
+
+                // Add each future in this history entry
+                futures.forEach((future, index) => {
+                    const pastFutureElement = document.createElement('div');
+                    pastFutureElement.className = 'past-future-item mb-2';
+
+                    // Get preference score
+                    const preferenceScore = future.preference_score || 0;
+
+                    // Get description based on what's available
+                    let description = "";
+                    if (future.short_term) {
+                        description = future.short_term;
+                    } else if (future.description) {
+                        description = future.description;
+                    } else {
+                        description = future.goal || "Unknown future";
+                    }
+
+                    // Create HTML for this past future
+                    pastFutureElement.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="past-future-desc">${description}</span>
+                            <span class="preference-badge" title="Preference score">
+                                ${preferenceScore.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="progress mt-1" style="height: 3px;">
+                            <div class="progress-bar bg-info" role="progressbar"
+                                style="width: ${preferenceScore * 100}%"
+                                aria-valuenow="${preferenceScore * 100}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    `;
+
+                    container.appendChild(pastFutureElement);
+                });
+
+                // Add a separator if not the last entry
+                if (historyIndex < recentHistory.length - 1) {
+                    const separator = document.createElement('hr');
+                    separator.className = 'my-2';
+                    container.appendChild(separator);
+                }
             });
         }
 
@@ -793,27 +883,6 @@
             });
         }
 
-        // Calculate similarity between two strings (basic implementation)
-        function calculateSimilarity(str1, str2) {
-            // Convert to lowercase
-            const a = str1.toLowerCase();
-            const b = str2.toLowerCase();
-
-            // Count matching words
-            const wordsA = a.split(/\s+/);
-            const wordsB = b.split(/\s+/);
-
-            let matches = 0;
-            wordsA.forEach(word => {
-                if (word.length > 3 && wordsB.includes(word)) {
-                    matches++;
-                }
-            });
-
-            const totalWords = Math.max(wordsA.length, wordsB.length);
-            return matches / totalWords;
-        }
-
         // Get a color based on index for the timeline
         function getColorForIndex(index, isBorder = false) {
             const colors = [
@@ -838,6 +907,27 @@
 
             const colorIndex = index % colors.length;
             return isBorder ? borderColors[colorIndex] : colors[colorIndex];
+        }
+
+        // Calculate similarity between two strings (basic implementation)
+        function calculateSimilarity(str1, str2) {
+            // Convert to lowercase
+            const a = str1.toLowerCase();
+            const b = str2.toLowerCase();
+
+            // Count matching words
+            const wordsA = a.split(/\s+/);
+            const wordsB = b.split(/\s+/);
+
+            let matches = 0;
+            wordsA.forEach(word => {
+                if (word.length > 3 && wordsB.includes(word)) {
+                    matches++;
+                }
+            });
+
+            const totalWords = Math.max(wordsA.length, wordsB.length);
+            return matches / totalWords;
         }
 
         // Add a message to the chat
@@ -914,6 +1004,10 @@
                 updateFutures(data.futures);
                 updatePreferredFutures(data.preferred_futures);
                 updateTimeline(data.future_history, data.terminated_futures);
+
+                if (data.preferred_futures_history) {
+                    updatePastPreferredFutures(data.preferred_futures_history);
+                }
 
             } catch (error) {
                 console.error('Error fetching state:', error);
@@ -1016,10 +1110,10 @@
             fetchState();
 
             // Set up periodic state updates
-            setInterval(fetchState, 5000);
+            setInterval(fetchState, 3000);  // Poll every 3 seconds instead of 5
 
             // Add welcome message
-            addMessage('Hello! I\'m an AI that simulates possible futures to find meaning and purpose in our conversation. How can I help you today?', 'ai');
+            addMessage('Hey there! How are you doing today?', 'ai');
         });
     </script>
     <script src="{{ url_for('static', filename='js/dark-theme.js') }}"></script>
