@@ -1,0 +1,273 @@
+/* Dark Theme CSS */
+:root {
+    --light-bg: #f8f9fa;
+    --light-text: #212529;
+    --light-card-bg: #ffffff;
+    --light-card-border: #dee2e6;
+    --light-input-bg: #ffffff;
+    --light-input-border: #ced4da;
+
+    --dark-bg: #121212;
+    --dark-text: #e0e0e0;
+    --dark-card-bg: #1e1e1e;
+    --dark-card-border: #333333;
+    --dark-input-bg: #2d2d2d;
+    --dark-input-border: #444444;
+
+    --ai-message-light: #f0f7ff;
+    --ai-message-dark: #1a2533;
+    --user-message-light: #f0f0f0;
+    --user-message-dark: #2a2a2a;
+
+    --future-item-light: #f9f9f9;
+    --future-item-dark: #282828;
+    --preferred-future-light: #f1f9f1;
+    --preferred-future-dark: #1e2a1e;
+}
+
+/* Light Theme (Default) */
+body.light-theme {
+    background-color: var(--light-bg);
+    color: var(--light-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.light-theme .card {
+    background-color: var(--light-card-bg);
+    border-color: var(--light-card-border);
+}
+
+body.light-theme .card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid var(--light-card-border);
+}
+
+body.light-theme .form-control {
+    background-color: var(--light-input-bg);
+    border-color: var(--light-input-border);
+    color: var(--light-text);
+}
+
+body.light-theme .ai-message .message-content {
+    background-color: var(--ai-message-light);
+    border-radius: 0.5rem;
+}
+
+body.light-theme .user-message .message-content {
+    background-color: var(--user-message-light);
+    border-radius: 0.5rem;
+    text-align: right;
+}
+
+body.light-theme .future-item {
+    background-color: var(--future-item-light);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    border-left: 3px solid #4f92cf;
+}
+
+body.light-theme .preferred-future-item {
+    background-color: var(--preferred-future-light);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    border-left: 3px solid #28a745;
+}
+
+/* Dark Theme */
+body.dark-theme {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-theme .card {
+    background-color: var(--dark-card-bg);
+    border-color: var(--dark-card-border);
+}
+
+body.dark-theme .card-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--dark-card-border);
+}
+
+body.dark-theme .form-control {
+    background-color: var(--dark-input-bg);
+    border-color: var(--dark-input-border);
+    color: var(--dark-text);
+}
+
+body.dark-theme .btn-outline-secondary {
+    color: #9e9e9e;
+    border-color: #555555;
+}
+
+body.dark-theme .btn-outline-secondary:hover {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+body.dark-theme .text-muted {
+    color: #9e9e9e !important;
+}
+
+body.dark-theme .ai-message .message-content {
+    background-color: var(--ai-message-dark);
+    border-radius: 0.5rem;
+}
+
+body.dark-theme .user-message .message-content {
+    background-color: var(--user-message-dark);
+    border-radius: 0.5rem;
+    text-align: right;
+}
+
+body.dark-theme .future-item {
+    background-color: var(--future-item-dark);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    border-left: 3px solid #4a7ab2;
+}
+
+body.dark-theme .preferred-future-item {
+    background-color: var(--preferred-future-dark);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    border-left: 3px solid #1d7334;
+}
+
+body.dark-theme .progress {
+    background-color: #333333;
+}
+
+body.dark-theme .badge {
+    color: #e0e0e0;
+}
+
+/* Message Styling */
+.message {
+    max-width: 80%;
+    margin-bottom: 15px;
+}
+
+.ai-message {
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+.user-message {
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-container {
+    margin-top: 10px;
+}
+
+#theme-toggle {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.light-theme .dark-icon {
+    display: none;
+}
+
+body.light-theme .light-icon {
+    display: inline;
+}
+
+body.dark-theme .dark-icon {
+    display: inline;
+}
+
+body.dark-theme .light-icon {
+    display: none;
+}
+
+/* Additional Styling */
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+/* Future Items Styling */
+.future-title {
+    font-size: 0.9rem;
+}
+
+.future-description {
+    font-size: 0.9rem;
+}
+
+.future-goal {
+    font-size: 0.8rem;
+}
+
+.probability-badge {
+    font-size: 0.75rem;
+    background-color: rgba(0, 123, 255, 0.2);
+    color: #0056b3;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+body.dark-theme .probability-badge {
+    background-color: rgba(0, 123, 255, 0.3);
+    color: #8bb8ff;
+}
+
+.alignment-badge {
+    font-size: 0.75rem;
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+body.dark-theme .alignment-badge {
+    background-color: rgba(40, 167, 69, 0.3);
+    color: #7dd992;
+}
+
+/* Time Perception Styling */
+.time-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+/* Timeline Visualization */
+#timeline-container {
+    position: relative;
+    height: 300px;
+}
+
+.timeline-label {
+    position: absolute;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+#branches-svg {
+    pointer-events: none;
+    z-index: 1;
+}
