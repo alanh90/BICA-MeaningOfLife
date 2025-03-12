@@ -7,7 +7,7 @@ import openai
 import math
 
 
-class MeaningOfLife:
+class ArtificialPurpose:
     def __init__(self, api_key):
         """Initialize the MeaningOfLife class with future simulation capabilities
 

@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import os
 from dotenv import load_dotenv
-from meaningoflife import MeaningOfLife
+from artificialpurpose import ArtificialPurpose
 
 # Load environment variables
 load_dotenv()
@@ -10,7 +10,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Initialize MeaningOfLife class
-meaning = MeaningOfLife(api_key=os.getenv("OPENAI_API_KEY"))
+meaning = ArtificialPurpose(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 @app.route('/')
