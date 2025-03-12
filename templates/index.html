@@ -44,9 +44,12 @@
                 <!-- Time Perception -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h2 class="h5 mb-0">Time Awareness</h2>
+                        <h2 class="h5 mb-0">Time Perception</h2>
                     </div>
                     <div class="card-body">
+                        <div class="mb-2 text-center">
+                            <small class="text-muted">Influences how the person prioritizes and responds</small>
+                        </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="time-stat mb-2">
@@ -54,13 +57,13 @@
                                     <span id="conversation-duration" class="stat-value">0s</span>
                                 </div>
                                 <div class="time-stat mb-2">
-                                    <span class="stat-label">Avg. Interaction Time:</span>
+                                    <span class="stat-label">Avg. Response Time:</span>
                                     <span id="interaction-frequency" class="stat-value">0s</span>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="time-stat mb-2">
-                                    <span class="stat-label">Time Pressure:</span>
+                                    <span class="stat-label">Perceived Time Pressure:</span>
                                     <div class="progress" style="height: 8px;">
                                         <div id="time-pressure-bar" class="progress-bar" role="progressbar" style="width: 30%"></div>
                                     </div>
@@ -82,8 +85,8 @@
                 <!-- Identity Values -->
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h2 class="h5 mb-0">AI Identity Values</h2>
-                        <button id="randomize-btn" class="btn btn-sm btn-primary">Randomize Identity</button>
+                        <h2 class="h5 mb-0">Personality Profile</h2>
+                        <button id="randomize-btn" class="btn btn-sm btn-primary">Randomize Personality</button>
                     </div>
                     <div class="card-body">
                         <canvas id="identity-chart"></canvas>
@@ -92,8 +95,9 @@
 
                 <!-- Preferred Futures -->
                 <div class="card mb-4">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h2 class="h5 mb-0">Preferred Future Paths</h2>
+                        <span class="badge bg-info">Subconscious Influence</span>
                     </div>
                     <div class="card-body">
                         <div id="preferred-futures-container" style="height: 180px; overflow-y: auto;">
@@ -109,8 +113,11 @@
                         <span id="futures-timestamp" class="badge bg-secondary">Last updated: --:--:--</span>
                     </div>
                     <div class="card-body">
-                        <div id="futures-container" style="height: 200px; overflow-y: auto;">
-                            <p class="text-center text-muted">The AI is thinking about possible futures...</p>
+                        <div class="mb-2 text-center">
+                            <small class="text-muted">Simulated subconscious future possibilities</small>
+                        </div>
+                        <div id="futures-container" style="height: 300px; overflow-y: auto;">
+                            <p class="text-center text-muted">Simulating possible futures...</p>
                         </div>
                     </div>
                 </div>
@@ -125,6 +132,9 @@
                         <h2 class="h5 mb-0">Future Branching Timeline</h2>
                     </div>
                     <div class="card-body">
+                        <div class="mb-2 text-center">
+                            <small class="text-muted">Visual representation of subconscious future simulation</small>
+                        </div>
                         <div id="timeline-container" style="height: 300px; position: relative;">
                             <svg id="branches-svg" width="100%" height="100%" style="position: absolute; top: 0; left: 0;"></svg>
                             <canvas id="timeline-chart"></canvas>
@@ -143,13 +153,20 @@
         // Initialize identity chart
         function initIdentityChart() {
             const ctx = document.getElementById('identity-chart').getContext('2d');
+
+            // Use two datasets to group related traits
             identityChart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: ['Helpfulness', 'Creativity', 'Analytical', 'Efficiency', 'Exploration', 'Connection'],
+                    labels: [
+                        'Openness', 'Conscientiousness', 'Extraversion',
+                        'Agreeableness', 'Neuroticism (-))', 'Optimism',
+                        'Adaptability', 'Risk Tolerance', 'Analytical',
+                        'Creativity', 'Helpfulness'
+                    ],
                     datasets: [{
-                        label: 'Identity Values',
-                        data: [0.8, 0.5, 0.6, 0.7, 0.4, 0.6],
+                        label: 'Personality Profile',
+                        data: [0.7, 0.6, 0.5, 0.8, 0.7, 0.6, 0.7, 0.4, 0.6, 0.5, 0.8],
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
                         borderColor: 'rgba(54, 162, 235, 1)',
                         pointBackgroundColor: 'rgba(54, 162, 235, 1)',
@@ -166,6 +183,38 @@
                             },
                             suggestedMin: 0,
                             suggestedMax: 1
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const trait = context.label;
+                                    const value = context.raw;
+
+                                    // For neuroticism, we invert the display since it's negative
+                                    if (trait.includes('Neuroticism')) {
+                                        return `${trait}: ${value.toFixed(2)} (Lower = more stable)`;
+                                    }
+
+                                    // Descriptions for each trait
+                                    const descriptions = {
+                                        'Openness': 'Curiosity and openness to new ideas',
+                                        'Conscientiousness': 'Organization and reliability',
+                                        'Extraversion': 'Sociability and assertiveness',
+                                        'Agreeableness': 'Empathy and cooperation',
+                                        'Neuroticism (-)': 'Emotional stability',
+                                        'Optimism': 'Positive outlook on future',
+                                        'Adaptability': 'Flexibility in changing situations',
+                                        'Risk Tolerance': 'Comfort with uncertainty',
+                                        'Analytical': 'Logical thinking ability',
+                                        'Creativity': 'Novel idea generation',
+                                        'Helpfulness': 'Desire to assist others'
+                                    };
+
+                                    return [`${trait}: ${value.toFixed(2)}`, descriptions[trait] || ''];
+                                }
+                            }
                         }
                     }
                 }
@@ -236,13 +285,22 @@
         function updateIdentity(identity) {
             if (!identity) return;
 
+            // For neuroticism, we display the inverse (1 - value) since it's a "negative" trait
+            // This way, higher on the chart = better (more emotional stability)
+            const neuroticismInverse = 1 - (identity.neuroticism || 0);
+
             identityChart.data.datasets[0].data = [
-                identity.helpfulness,
-                identity.creativity,
-                identity.analytical,
-                identity.efficiency,
-                identity.exploration,
-                identity.connection
+                identity.openness || 0,
+                identity.conscientiousness || 0,
+                identity.extraversion || 0,
+                identity.agreeableness || 0,
+                neuroticismInverse,
+                identity.optimism || 0,
+                identity.adaptability || 0,
+                identity.risk_tolerance || 0,
+                identity.analytical || 0,
+                identity.creativity || 0,
+                identity.helpfulness || 0
             ];
             identityChart.update();
         }
@@ -289,23 +347,66 @@
             // Create future elements
             futures.forEach((future, index) => {
                 const futureElement = document.createElement('div');
-                futureElement.className = `future-item mb-3 ${index < 2 ? 'preferred' : ''}`;
+
+                // Add valence-based class if available
+                let valenceClass = '';
+                if (future.valence === 'positive') {
+                    valenceClass = 'positive-future';
+                } else if (future.valence === 'negative') {
+                    valenceClass = 'negative-future';
+                } else if (future.valence === 'neutral') {
+                    valenceClass = 'neutral-future';
+                }
+
+                futureElement.className = `future-item mb-4 ${index < 2 ? 'preferred' : ''} ${valenceClass}`;
 
                 // Calculate probability percentage and width
                 const probabilityPercent = (future.probability * 100).toFixed(1);
 
+                // Create a label for the valence if available
+                let valenceLabel = '';
+                if (future.valence) {
+                    const valenceColors = {
+                        'positive': 'success',
+                        'neutral': 'secondary',
+                        'negative': 'danger'
+                    };
+                    const color = valenceColors[future.valence] || 'secondary';
+                    valenceLabel = `<span class="badge bg-${color} me-2">${future.valence}</span>`;
+                }
+
+                // Content for different timeframes
+                let timeframeContent = '';
+
+                if (future.short_term || future.mid_term || future.long_term) {
+                    timeframeContent = `
+                        <div class="timeframes mt-2">
+                            ${future.short_term ? `<p class="timeframe short-term mb-1"><strong>Short-term:</strong> ${future.short_term}</p>` : ''}
+                            ${future.mid_term ? `<p class="timeframe mid-term mb-1"><strong>Mid-term:</strong> ${future.mid_term}</p>` : ''}
+                            ${future.long_term ? `<p class="timeframe long-term mb-1"><strong>Long-term:</strong> ${future.long_term}</p>` : ''}
+                        </div>
+                    `;
+                } else {
+                    // Fallback for old format
+                    timeframeContent = `<p class="future-description mb-1">${future.description || ''}</p>`;
+                }
+
                 futureElement.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="future-title">Future ${index + 1}</strong>
+                        <div>
+                            <strong class="future-title">Future ${index + 1}</strong>
+                            ${valenceLabel}
+                        </div>
                         <span class="probability-badge">${probabilityPercent}%</span>
                     </div>
-                    <p class="future-description mb-1">${future.description}</p>
+                    ${timeframeContent}
                     <div class="progress" style="height: 4px;">
-                        <div class="progress-bar" role="progressbar"
+                        <div class="progress-bar ${future.valence === 'negative' ? 'bg-danger' : future.valence === 'positive' ? 'bg-success' : ''}"
+                            role="progressbar"
                             style="width: ${probabilityPercent}%"
                             aria-valuenow="${probabilityPercent}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
-                    <small class="future-goal text-muted d-block mt-1">Goal: ${future.goal || 'None'}</small>
+                    <small class="future-goal d-block mt-1"><strong>Goal:</strong> ${future.goal || 'None'}</small>
                 `;
 
                 container.appendChild(futureElement);
@@ -314,7 +415,11 @@
 
         // Update the preferred futures display
         function updatePreferredFutures(preferredFutures) {
-            if (!preferredFutures || preferredFutures.length === 0) return;
+            if (!preferredFutures || preferredFutures.length === 0) {
+                document.getElementById('preferred-futures-container').innerHTML =
+                    '<p class="text-center text-muted">No preferred futures yet...</p>';
+                return;
+            }
 
             const container = document.getElementById('preferred-futures-container');
             container.innerHTML = '';
@@ -329,15 +434,46 @@
                         Alignment: ${future.alignment.toFixed(2)}
                     </span>` : '';
 
+                // Content for different timeframes
+                let timeframeContent = '';
+
+                if (future.short_term || future.mid_term || future.long_term) {
+                    timeframeContent = `
+                        <div class="timeframes mt-2">
+                            ${future.short_term ? `<p class="timeframe short-term mb-1"><strong>Short-term:</strong> ${future.short_term}</p>` : ''}
+                            ${future.mid_term ? `<p class="timeframe mid-term mb-1"><strong>Mid-term:</strong> ${future.mid_term}</p>` : ''}
+                            ${future.long_term ? `<p class="timeframe long-term mb-1"><strong>Long-term:</strong> ${future.long_term}</p>` : ''}
+                        </div>
+                    `;
+                } else if (future.description) {
+                    // Fallback for old format
+                    timeframeContent = `<p class="future-description mb-1">${future.description}</p>`;
+                }
+
+                // Create valence label if available
+                let valenceLabel = '';
+                if (future.valence) {
+                    const valenceColors = {
+                        'positive': 'success',
+                        'neutral': 'secondary',
+                        'negative': 'danger'
+                    };
+                    const color = valenceColors[future.valence] || 'secondary';
+                    valenceLabel = `<span class="badge bg-${color} me-2">${future.valence}</span>`;
+                }
+
                 futureElement.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <strong class="future-title">Preferred Path ${index + 1}</strong>
+                        <div>
+                            <strong class="future-title">Preferred Path ${index + 1}</strong>
+                            ${valenceLabel}
+                        </div>
                         <div>
                             <span class="probability-badge">${(future.probability * 100).toFixed(1)}%</span>
                             ${alignmentDisplay}
                         </div>
                     </div>
-                    <p class="future-description mb-1">${future.description}</p>
+                    ${timeframeContent}
                     <div class="progress" style="height: 6px;">
                         <div class="progress-bar bg-success" role="progressbar"
                             style="width: ${future.probability * 100}%"
@@ -351,7 +487,7 @@
         }
 
         // Update the timeline visualization with branching paths
-        function updateTimeline(futureHistory) {
+        function updateTimeline(futureHistory, terminatedFutures) {
             if (!futureHistory || futureHistory.length === 0) return;
 
             // Store the history
@@ -372,7 +508,13 @@
                 const relativeTime = snapshot.time - startTime;
 
                 // Assign consistent y-positions to futures within each snapshot
-                const snapshotFutures = snapshot.futures.map(f => f.description);
+                const snapshotFutures = snapshot.futures.map(f => {
+                    // Use appropriate property based on what's available
+                    if (f.short_term) return f.short_term;
+                    if (f.description) return f.description;
+                    return f.goal || "unknown";
+                });
+
                 const yPositions = {};
 
                 // Distribute futures evenly in y space
@@ -382,23 +524,38 @@
                 });
 
                 snapshot.futures.forEach(future => {
-                    const description = future.description;
+                    // Determine key content based on what's available
+                    const description = future.short_term || future.description || future.goal || "unknown";
 
                     // Create a unique key for this future
                     let key = description;
                     if (!uniqueFutures.has(key)) {
+                        // Choose color based on valence if available
+                        let color;
+                        if (future.valence === 'positive') {
+                            color = 'rgba(40, 167, 69, 0.7)'; // Green for positive
+                        } else if (future.valence === 'negative') {
+                            color = 'rgba(220, 53, 69, 0.7)'; // Red for negative
+                        } else if (future.valence === 'neutral') {
+                            color = 'rgba(108, 117, 125, 0.7)'; // Gray for neutral
+                        } else {
+                            // Default colors if no valence
+                            color = getColorForIndex(futureIndex);
+                        }
+
                         uniqueFutures.set(key, {
                             label: description,
                             data: [],
-                            backgroundColor: getColorForIndex(futureIndex),
+                            backgroundColor: color,
                             borderColor: getColorForIndex(futureIndex, true),
-                            borderWidth: 1
+                            borderWidth: 1,
+                            borderDash: future.termination_time ? [5, 5] : [] // Dashed line for terminated futures
                         });
                         futureIndex++;
                     }
 
                     // Get consistent y position
-                    const yPos = yPositions[description];
+                    const yPos = yPositions[description] || Math.random() * 0.8 + 0.1;
 
                     // Add data point
                     const dataPoint = {
@@ -408,16 +565,74 @@
                         probability: future.probability,
                         label: description.length > 30 ? description.substring(0, 30) + '...' : description,
                         goal: future.goal,
+                        valence: future.valence,
+                        realism: future.realism,
                         description: description,
                         snapshotIndex: snapshotIndex,
                         futureIndex: uniqueFutures.size - 1,
-                        color: getColorForIndex(futureIndex - 1, true)
+                        color: uniqueFutures.get(key).backgroundColor,
+                        dying: future.dying || false,
+                        terminated: future.terminated || false
                     };
 
                     uniqueFutures.get(key).data.push(dataPoint);
                     allDataPoints.push(dataPoint);
                 });
             });
+
+            // Add terminated futures to visualization
+            if (terminatedFutures && terminatedFutures.length > 0) {
+                terminatedFutures.forEach(future => {
+                    const description = future.short_term || future.description || future.goal || "unknown";
+                    const key = description;
+
+                    // Skip if we already have this future
+                    if (uniqueFutures.has(key)) return;
+
+                    // Create dataset for terminated future
+                    let color;
+                    if (future.valence === 'positive') {
+                        color = 'rgba(40, 167, 69, 0.3)'; // Faded green
+                    } else if (future.valence === 'negative') {
+                        color = 'rgba(220, 53, 69, 0.3)'; // Faded red
+                    } else {
+                        color = 'rgba(108, 117, 125, 0.3)'; // Faded gray
+                    }
+
+                    uniqueFutures.set(key, {
+                        label: description,
+                        data: [],
+                        backgroundColor: color,
+                        borderColor: 'rgba(200, 200, 200, 0.5)',
+                        borderWidth: 1,
+                        borderDash: [5, 5] // Dashed line for terminated futures
+                    });
+
+                    // Calculate relative time
+                    const relativeTime = future.termination_time - startTime;
+
+                    // Find a good y position
+                    const yPos = Math.random() * 0.8 + 0.1;
+
+                    // Add data point
+                    const dataPoint = {
+                        x: relativeTime,
+                        y: yPos,
+                        r: future.probability * 10 + 3, // Smaller size for terminated futures
+                        probability: future.probability,
+                        label: description.length > 30 ? description.substring(0, 30) + '...' : description,
+                        goal: future.goal,
+                        description: description,
+                        snapshotIndex: -1, // Special index for terminated
+                        futureIndex: uniqueFutures.size - 1,
+                        color: color,
+                        terminated: true
+                    };
+
+                    uniqueFutures.get(key).data.push(dataPoint);
+                    allDataPoints.push(dataPoint);
+                });
+            }
 
             // Update chart with new datasets
             timelineChart.data.datasets = Array.from(uniqueFutures.values());
@@ -440,6 +655,9 @@
             // Group by snapshot
             const pointsBySnapshot = {};
             dataPoints.forEach(point => {
+                // Skip terminated points for connections
+                if (point.terminated) return;
+
                 if (!pointsBySnapshot[point.snapshotIndex]) {
                     pointsBySnapshot[point.snapshotIndex] = [];
                 }
@@ -466,6 +684,9 @@
 
                 // Draw connections between points
                 currentPoints.forEach(source => {
+                    // Skip dying points as sources for new connections
+                    if (source.dying) return;
+
                     nextPoints.forEach(target => {
                         // Determine if these futures should be connected
                         // Connect if they share similar descriptions or goals
@@ -474,8 +695,23 @@
                             target.description
                         );
 
+                        // Get similarity in goals if available
+                        const goalSimilarity = (source.goal && target.goal) ?
+                            calculateSimilarity(source.goal, target.goal) : 0;
+
+                        // Get similarity in valence if available
+                        const valenceSimilarity = (source.valence && target.valence &&
+                                                  source.valence === target.valence) ? 0.5 : 0;
+
+                        // Combined similarity score
+                        const totalSimilarity = Math.max(
+                            descriptionSimilarity,
+                            goalSimilarity * 0.8,  // Goal similarity is weighted slightly less
+                            valenceSimilarity
+                        );
+
                         // Only connect if similarity is above threshold
-                        if (descriptionSimilarity > 0.3) {
+                        if (totalSimilarity > 0.3) {
                             const sourcePos = getChartPosition(source.x, source.y);
                             const targetPos = getChartPosition(target.x, target.y);
 
@@ -502,10 +738,19 @@
                             );
 
                             // Line opacity based on similarity
-                            const opacity = Math.max(0.2, Math.min(0.7, descriptionSimilarity));
+                            const opacity = Math.max(0.2, Math.min(0.7, totalSimilarity));
+
+                            // Color based on source
+                            let strokeColor = source.color;
+
+                            // Special styling for dying paths
+                            if (target.dying) {
+                                path.setAttribute('stroke-dasharray', '5,5');
+                                strokeColor = 'rgba(150, 150, 150, 0.5)';  // Fade color for dying paths
+                            }
 
                             path.setAttribute('stroke-width', lineWeight);
-                            path.setAttribute('stroke', source.color);
+                            path.setAttribute('stroke', strokeColor);
                             path.setAttribute('stroke-opacity', opacity);
 
                             // Add line
@@ -514,6 +759,38 @@
                     });
                 });
             }
+
+            // Draw termination markers for dying futures
+            dataPoints.forEach(point => {
+                if (point.dying || point.terminated) {
+                    const pos = getChartPosition(point.x, point.y);
+
+                    // Create X marker for terminating path
+                    const terminationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+                    // First line of X
+                    const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line1.setAttribute('x1', pos.x - 8);
+                    line1.setAttribute('y1', pos.y - 8);
+                    line1.setAttribute('x2', pos.x + 8);
+                    line1.setAttribute('y2', pos.y + 8);
+                    line1.setAttribute('stroke', 'rgba(200, 50, 50, 0.7)');
+                    line1.setAttribute('stroke-width', 2);
+
+                    // Second line of X
+                    const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line2.setAttribute('x1', pos.x + 8);
+                    line2.setAttribute('y1', pos.y - 8);
+                    line2.setAttribute('x2', pos.x - 8);
+                    line2.setAttribute('y2', pos.y + 8);
+                    line2.setAttribute('stroke', 'rgba(200, 50, 50, 0.7)');
+                    line2.setAttribute('stroke-width', 2);
+
+                    terminationGroup.appendChild(line1);
+                    terminationGroup.appendChild(line2);
+                    svg.appendChild(terminationGroup);
+                }
+            });
         }
 
         // Calculate similarity between two strings (basic implementation)
@@ -636,7 +913,7 @@
                 updateTimePerception(data.time_perception);
                 updateFutures(data.futures);
                 updatePreferredFutures(data.preferred_futures);
-                updateTimeline(data.future_history);
+                updateTimeline(data.future_history, data.terminated_futures);
 
             } catch (error) {
                 console.error('Error fetching state:', error);

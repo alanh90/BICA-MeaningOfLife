@@ -202,7 +202,7 @@ body.dark-theme .light-icon {
     font-size: 0.9rem;
 }
 
-.future-description {
+.future-description, .timeframe {
     font-size: 0.9rem;
 }
 
@@ -221,6 +221,38 @@ body.dark-theme .light-icon {
 body.dark-theme .probability-badge {
     background-color: rgba(0, 123, 255, 0.3);
     color: #8bb8ff;
+}
+
+/* Timeframe styles */
+.timeframe.short-term {
+    border-left: 3px solid #6c757d;
+    padding-left: 8px;
+    margin-left: 4px;
+}
+
+.timeframe.mid-term {
+    border-left: 3px solid #007bff;
+    padding-left: 8px;
+    margin-left: 4px;
+}
+
+.timeframe.long-term {
+    border-left: 3px solid #6f42c1;
+    padding-left: 8px;
+    margin-left: 4px;
+}
+
+/* Valence-based styling */
+.positive-future {
+    border-left-color: #28a745 !important;
+}
+
+.negative-future {
+    border-left-color: #dc3545 !important;
+}
+
+.neutral-future {
+    border-left-color: #6c757d !important;
 }
 
 .alignment-badge {

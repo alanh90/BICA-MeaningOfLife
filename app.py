@@ -43,6 +43,11 @@ def ask():
 def state():
     """Return the current system state for visualization."""
     state = meaning.get_state()
+
+    # Include terminated futures for visualization
+    if hasattr(meaning, 'terminated_futures'):
+        state["terminated_futures"] = list(meaning.terminated_futures.values())
+
     return jsonify(state)
 
 
